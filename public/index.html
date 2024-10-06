@@ -1,0 +1,263 @@
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>User Authentication</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/axios/1.6.7/axios.min.js"></script>
+    <style>
+      body {
+        font-family: Arial, sans-serif;
+        max-width: 500px;
+        margin: 0 auto;
+        padding: 20px;
+      }
+      .form-group {
+        margin-bottom: 15px;
+      }
+      label {
+        display: block;
+        margin-bottom: 5px;
+      }
+      input {
+        width: 100%;
+        padding: 8px;
+        border: 1px solid #ddd;
+        border-radius: 4px;
+      }
+      button {
+        background-color: #4caf50;
+        color: white;
+        padding: 10px 15px;
+        border: none;
+        border-radius: 4px;
+        cursor: pointer;
+      }
+      button:hover {
+        background-color: #45a049;
+      }
+      #message {
+        margin-top: 20px;
+        padding: 10px;
+        border-radius: 4px;
+      }
+      .success {
+        background-color: #dff0d8;
+        color: #3c763d;
+      }
+      .error {
+        background-color: #f2dede;
+        color: #a94442;
+      }
+      .section {
+        margin-bottom: 30px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 20px;
+      }
+      .google-btn {
+        background-color: #4285f4;
+      }
+      .google-btn:hover {
+        background-color: #357ae8;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>User Authentication</h1>
+
+    <div class="section">
+      <h2>Register</h2>
+      <form id="registerForm">
+        <div class="form-group">
+          <label for="name">Name:</label>
+          <input type="text" id="name" required />
+        </div>
+        <div class="form-group">
+          <label for="email">Email:</label>
+          <input type="email" id="email" required />
+        </div>
+        <div class="form-group">
+          <label for="password">Password:</label>
+          <input type="password" id="password" required />
+        </div>
+        <div class="form-group">
+          <label for="phone">Phone:</label>
+          <input type="tel" id="phone" />
+        </div>
+        <button type="submit">Register</button>
+      </form>
+      <button id="googleAuth" class="google-btn">Sign up with Google</button>
+    </div>
+
+    <div class="section">
+      <h2>Login</h2>
+      <form id="loginForm">
+        <div class="form-group">
+          <label for="loginEmail">Email:</label>
+          <input type="email" id="loginEmail" required />
+        </div>
+        <div class="form-group">
+          <label for="loginPassword">Password:</label>
+          <input type="password" id="loginPassword" required />
+        </div>
+        <button type="submit">Login</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Phone Verification</h2>
+      <button id="sendOTP">Send OTP</button>
+      <form id="phoneVerificationForm">
+        <div class="form-group">
+          <label for="verificationOTP">Enter OTP:</label>
+          <input type="text" id="verificationOTP" required />
+        </div>
+        <button type="submit">Verify Phone</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Password Recovery</h2>
+      <form id="forgotPasswordForm">
+        <div class="form-group">
+          <label for="forgotEmail">Email:</label>
+          <input type="email" id="forgotEmail" required />
+        </div>
+        <button type="submit">Reset Password</button>
+      </form>
+    </div>
+
+    <div class="section">
+      <h2>Logout</h2>
+      <button id="logoutBtn">Logout</button>
+    </div>
+
+    <div id="message"></div>
+
+    <script>
+      let token = localStorage.getItem("token");
+
+      function showMessage(text, isError = false) {
+        const messageDiv = document.getElementById("message");
+        messageDiv.textContent = text;
+        messageDiv.className = isError ? "error" : "success";
+      }
+
+      document
+        .getElementById("registerForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const response = await axios.post("/api/users/register", {
+              name: document.getElementById("name").value,
+              email: document.getElementById("email").value,
+              password: document.getElementById("password").value,
+              phone: document.getElementById("phone").value,
+            });
+            token = response.data.token;
+            localStorage.setItem("token", token);
+            showMessage(
+              "Registration successful! Token: " + response.data.token
+            );
+          } catch (error) {
+            showMessage(
+              error.response?.data?.message || "Registration failed",
+              true
+            );
+          }
+        });
+
+      document
+        .getElementById("loginForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const response = await axios.post("/api/users/login", {
+              email: document.getElementById("loginEmail").value,
+              password: document.getElementById("loginPassword").value,
+            });
+            token = response.data.token;
+            localStorage.setItem("token", token);
+            showMessage("Login successful! Token: " + response.data.token);
+          } catch (error) {
+            showMessage(error.response?.data?.message || "Login failed", true);
+          }
+        });
+
+      document.getElementById("googleAuth").addEventListener("click", () => {
+        window.location.href = "/api/users/auth/google";
+      });
+
+      document.getElementById("sendOTP").addEventListener("click", async () => {
+        try {
+          const response = await axios.post(
+            "/api/users/verify-phone",
+            {},
+            { headers: { Authorization: `Bearer ${token}` } }
+          );
+          showMessage(response.data.message);
+        } catch (error) {
+          showMessage(
+            error.response?.data?.message || "Failed to send OTP",
+            true
+          );
+        }
+      });
+
+      document
+        .getElementById("phoneVerificationForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const response = await axios.post(
+              "/api/users/confirm-phone",
+              { otp: document.getElementById("verificationOTP").value },
+              { headers: { Authorization: `Bearer ${token}` } }
+            );
+            showMessage(response.data.message);
+          } catch (error) {
+            showMessage(
+              error.response?.data?.message || "Phone verification failed",
+              true
+            );
+          }
+        });
+
+      document
+        .getElementById("forgotPasswordForm")
+        .addEventListener("submit", async (e) => {
+          e.preventDefault();
+          try {
+            const response = await axios.post("/api/users/forgot-password", {
+              email: document.getElementById("forgotEmail").value,
+            });
+            showMessage(response.data.message);
+          } catch (error) {
+            showMessage(
+              error.response?.data?.message || "Password reset request failed",
+              true
+            );
+          }
+        });
+
+      document
+        .getElementById("logoutBtn")
+        .addEventListener("click", async () => {
+          try {
+            const response = await axios.post(
+              "/api/users/logout",
+              {},
+              {
+                headers: { Authorization: `Bearer ${token}` },
+              }
+            );
+            token = null;
+            localStorage.removeItem("token");
+            showMessage(response.data.message);
+          } catch (error) {
+            showMessage("Logout failed", true);
+          }
+        });
+    </script>
+  </body>
+</html>
